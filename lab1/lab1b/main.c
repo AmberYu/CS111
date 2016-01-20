@@ -25,7 +25,7 @@
 #define NONBLOCK  'l'
 #define RSYNC     'm'
 #define SYNC      'n'
-#define TRUNC     'o'
+#define TRUNC     'p'
 
 
 int main(int argc, char * argv[])
