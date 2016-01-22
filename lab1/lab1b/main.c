@@ -252,7 +252,7 @@ int main(int argc, char * argv[])
 
       case CLOSE:
       {
-        close(fd_vec(optarg));
+        close(fd_vec(atoi(optarg));
         break;
       }
 
@@ -264,25 +264,25 @@ int main(int argc, char * argv[])
 
       case CATCH:
       {
-        signal(optarg, sig_handler(optarg));
+        signal(atoi(optarg), sig_handler(atoi(optarg));
         break;
       }
 
       case IGNORE:
       {
-        signal(optarg, SIG_IGN);
+        signal(atoi(optarg), SIG_IGN);
         break;
       }
 
       case DEFAULT:
       {
-        signal(optarg, SIG_DEL);
+        signal(atoi(optarg), SIG_DEL);
         break;
       }
 
       case PAUSE:
       {
-        signal(optarg, SIG_DEL);
+        signal(atoi(optarg), SIG_DEL);
         break;
       }
 
