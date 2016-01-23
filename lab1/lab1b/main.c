@@ -146,6 +146,14 @@ int main(int argc, char * argv[])
               //optind++;
               //optind++;
               //printf("optind: %d, argc: %d\n", optind,argc);
+
+              int j = 3;
+              for(j; j < argc; ++j)
+              {
+                close(fd_vec[j]);
+              }
+
+
               int i;
               for (i = 0;optind < argc; ++i,++optind)
               {
@@ -185,8 +193,25 @@ int main(int argc, char * argv[])
         } 
         break;
       }
+
+      case PIPE:
+      {
+          int pipefd[2];
+          // printf("1\n");
+          pipe(pipefd);
+          // printf("1\n");
+          fd_vec[logic_fd++] = pipefd[0];  //read end of pipe
+          // printf("%d\n", pipefd[0]);
+          // printf("%d\n", logic_fd);
+          fd_vec[logic_fd++] = pipefd[1];  //write end of pipe
+          // printf("%d\n", pipefd[1]);
+          // printf("%d\n", logic_fd);
+          break;
+      }
+
       case APPEND:
       {
+        printf("append called\n");
         oflag|=O_APPEND;
         break;
       }
