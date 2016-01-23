@@ -77,6 +77,7 @@ int main(int argc, char * argv[])
   struct wait_info waits[20];
   int numSubPro=0;  //number of subprocess
 
+  int oflag=0;   //record the mode of open
   int index;
   int iarg=0;
   int fd;
@@ -184,9 +185,67 @@ int main(int argc, char * argv[])
         } 
         break;
       }
+      case APPEND:
+      {
+        oflag|=O_APPEND;
+        break;
+      }
+      case CLOEXEC:
+      {
+        oflag|=O_CLOEXEC;
+        break;
+      }
+      case CREAT:
+      {
+        printf("creat called\n");
+        oflag|=O_CREAT;
+        break;
+      }
+      case DIRECTORY:
+      {
+        oflag|=O_DIRECTORY;
+        break;
+      }
+      case DSYNC:
+      {
+        oflag|=O_DSYNC;
+        break;
+      }
+      case EXCL:
+      {
+        oflag|=O_EXCL;
+        break;
+      }
+      case NOFOLLOW:
+      {
+        oflag|=O_NOFOLLOW;
+        break;
+      }
+      case NONBLOCK:
+      {
+        oflag|=O_NONBLOCK;
+        break;
+      }
+      // case RSYNC:
+      // {
+      //   oflag|=O_RSYNC;
+      //   break;
+      // }
+      
+      case SYNC:
+      {
+        oflag|=O_SYNC;
+        break;
+      }
+      case TRUNC:
+      {
+        oflag|=O_TRUNC;
+        break;
+      }
       case RDONLY:
       {
-        if((fd = open(optarg, O_RDONLY))!=-1){
+        oflag|=O_RDONLY;
+        if((fd = open(optarg, oflag))!=-1){
           //printf("read only is hit, the logic fd is %d\n",logic_fd);
           fd_vec[logic_fd++] = fd;  //store the true fd and make it can be visited via logic fd
         }
@@ -196,11 +255,13 @@ int main(int argc, char * argv[])
           fprintf(stderr, "\n open() failed with error [%s]\n",strerror(errno)); /* open failed */ 
           exit(1);
         }
+        oflag=0;
         break;
       }
       case WRONLY:
       {
-        if((fd = open(optarg, O_WRONLY))!=-1){
+        oflag|=O_WRONLY;
+        if((fd = open(optarg, oflag,0644))!=-1){
           //printf("write only is hit, the logic fd is %d\n",logic_fd);
           fd_vec[logic_fd++] = fd;  //store the true fd and make it can be visited via logic fd
         }
@@ -208,6 +269,7 @@ int main(int argc, char * argv[])
           fprintf(stderr, "\n open() failed with error [%s]\n",strerror(errno)); /* open failed */ 
           exit(1);
         }
+        oflag=0;
         break;
       }
     }
