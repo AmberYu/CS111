@@ -5,17 +5,37 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #define no_argument 0
 #define required_argument 1 
 #define optional_argument 2
 
-#define RDONLY  'a'
-#define WRONLY  'b'
-#define COMMAND 'c'
-#define VERBOSE 'd'
-#define WAIT    'e'
+#define RDONLY    'a'
+#define WRONLY    'b'
+#define COMMAND   'c'
+#define VERBOSE   'd'
+#define APPEND    'e'
+#define CLOEXEC   'f'
+#define CREAT     'g'
+#define DIRECTORY 'h'
+#define DSYNC     'i'
+#define EXCL      'j'
+#define NOFOLLOW  'k'
+#define NONBLOCK  'l'
+#define RSYNC     'm'
+#define SYNC      'n'
+#define TRUNC     'o'
+#define RDWR      'p'
+#define PIPE      'q'
+#define WAIT      'r'
+#define CLOSE     's'
+#define ABORT     't'
+#define CATCH     'u'
+#define IGNORE    'v'
+#define DEFAULT   'w'
+#define PAUSE     'x'
 
 int main(int argc, char * argv[])
 {
@@ -25,9 +45,29 @@ int main(int argc, char * argv[])
     {"wronly",  required_argument, 0, WRONLY },
     {"command", required_argument, 0, COMMAND},
     {"verbose", no_argument,       0, VERBOSE},
-    {"wait",    no_argument,       0, WAIT},
+    {"append",  no_argument, 0, APPEND },
+    {"cloexec",  no_argument, 0, CLOEXEC },
+    {"creat", no_argument, 0, CREAT},
+    {"directory", no_argument,       0, DIRECTORY},
+    {"dsync",  no_argument, 0, DSYNC },
+    {"excl",  no_argument, 0, EXCL },
+    {"nofollow", no_argument, 0, NOFOLLOW},
+    {"nonblock", no_argument,       0, NONBLOCK},
+    {"rsync",  no_argument, 0, RSYNC },
+    {"sync",  no_argument, 0, SYNC },
+    {"trunc", no_argument, 0, TRUNC},
+    {"rdwr", required_argument, 0, RDWR},
+    {"pipe", no_argument, 0, PIPE},
+    {"wait", no_argument, 0, WAIT},
+    {"close", required_argument, 0, CLOSE},
+    {"abort", no_argument, 0, ABORT},
+    {"catch", required_argument, 0, CATCH},
+    {"ignore", required_argument, 0, IGNORE},
+    {"default", required_argument, 0, DEFAULT},
+    {"pause", no_argument, 0, PAUSE},
     {0,           0,               0,  0   }  //denote end
   };
+  //keep record of wait information in parent process for future use when come accross wait option
   struct wait_info
   {
     int childPid;
