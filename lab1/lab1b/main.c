@@ -38,9 +38,16 @@
 #define PAUSE     'x'
 
 
+char* itoa(int num)
+{
+    char* buffer = malloc(20);
+    snprintf(buffer, 10, "%d", num);
+    return buffer;
+}
+
 void sig_handler(sigNum)
 {
-
+    return;
 }
 
 
@@ -120,27 +127,10 @@ int main(int argc, char * argv[])
         //--wait, as each subprocess finishes, it prints its exit status, followed by the command and arguments
         //print exit status
           
-        // count = num_of_subprocess
-        int i = 0;
-        for(i ; i < count; ++i)
-        {
-          //wait for the subprocess to return 
-          wait();
-
-        }    
-        // if(!s.empty())
-        // {
-
-          for(int i = 0 ; s[i] != NULL; ++i)
+        for(int i = 0 ; s[i] != NULL; ++i)
           {
             printf("%s ", s[i]);
-          }
-          
-        // }
-                
-                
-                 
-          
+          }   
         break;
       }
 
@@ -289,7 +279,12 @@ int main(int argc, char * argv[])
 
       case COMMAND:
       {
+        //generate a subprocess
         pid = fork();
+        //in succeed, return a 0 to the child process
+        //child process Id to parent process
+        //now we have two same process except for pid
+
         char* a[20];
         // Child process
         if (pid == 0) {
@@ -340,10 +335,10 @@ int main(int argc, char * argv[])
             // Wait for child process to finish
             int childStatus;
             waitpid(pid, &childStatus, 0);
-
             int exit_status = WEXITSTATUS(childStatus);
 
-            s[wait_index++] = exit_status;
+
+            s[wait_index++] = itoa(exit_status);
 
             int i = 0;
             for(i,wait_index; a[i]!= NULL; ++i, ++wait_index)
