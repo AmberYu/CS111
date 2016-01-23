@@ -10,4 +10,5 @@ touch t3_error.txt
   --rdonly t3_input.txt \
   --wronly t3_output.txt \
   --wronly t3_error.txt \
-  --command 0 1 2 tr A a
+  --command 0 1 2 tr A a \
+  --wait

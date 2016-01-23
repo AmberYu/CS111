@@ -16,5 +16,5 @@ echo 6 >> t4_input.txt
   --creat --trunc --wronly t4_output.txt \
   --creat --append --wronly t4_error.txt \
   --command 0 2 4 sort \
-  --command 1 3 4 tr 1 a 
-  # --wait
+  --command 1 3 4 tr 1 a \
+  --wait
