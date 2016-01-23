@@ -303,6 +303,20 @@ int main(int argc, char * argv[])
         oflag=0;
         break;
       }
+      case RDWR:
+      {
+        oflag|=O_RDWR;
+        if((fd = open(optarg, oflag，0644))!=-1){
+          //printf("read only is hit, the logic fd is %d\n",logic_fd);
+          fd_vec[logic_fd++] = fd;  //store the true fd and make it can be visited via logic fd
+        }
+        else{
+          fprintf(stderr, "\n open() failed with error [%s]\n",strerror(errno)); /* open failed */ 
+          exit(1);
+        }
+        oflag=0;
+        break;
+      }
     }
   }
 
