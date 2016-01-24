@@ -30,12 +30,20 @@
 #define RDWR      'p'
 #define PIPE      'q'
 #define WAIT      'r'
-#define CLOSE     's'
-#define ABORT     't'
-#define CATCH     'u'
-#define IGNORE    'v'
-#define DEFAULT   'w'
-#define PAUSE     'x'
+#define CLOSE     's'   
+#define ABORT     't'   
+#define CATCH     'u'   //test
+#define IGNORE    'v'   //test
+#define DEFAULT   'w'   //test
+#define PAUSE     'x'   //test
+
+
+void sig_handler(int sigNum)
+{
+  fprintf(stderr, "Signal Catch [%s]\n", strerror(sigNum)); 
+  // printf("signal catch: %d\n", signum);
+  exit(sigNum);
+}
 
 int main(int argc, char * argv[])
 {
@@ -268,11 +276,50 @@ int main(int argc, char * argv[])
         oflag|=O_SYNC;
         break;
       }
+
       case TRUNC:
       {
         oflag|=O_TRUNC;
         break;
       }
+
+      case CLOSE:
+      {
+        close(fd_vec[atoi(optarg)]);
+        break;
+      }
+
+      case ABORT:
+      {
+        raise(SIGSEGV);
+        break;
+      }
+
+      case IGNORE:
+      {
+        signal(atoi(optarg), SIG_IGN);
+        break;
+      }
+
+      case DEFAULT:
+      {
+        signal(atoi(optarg), SIG_DFL);
+        break;
+      }
+
+      //waiting for the signal not set ignored to arrive
+      case PAUSE:
+      {
+        pause();
+        break;
+      }
+
+      case CATCH:
+      {
+        signal(atoi(optarg), sig_handler);
+        break;
+      }
+
       case RDONLY:
       {
         oflag|=O_RDONLY;
@@ -306,7 +353,7 @@ int main(int argc, char * argv[])
       case RDWR:
       {
         oflag|=O_RDWR;
-        if((fd = open(optarg, oflag，0644))!=-1){
+        if((fd = open(optarg, oflag, 0644))!=-1){
           //printf("read only is hit, the logic fd is %d\n",logic_fd);
           fd_vec[logic_fd++] = fd;  //store the true fd and make it can be visited via logic fd
         }
