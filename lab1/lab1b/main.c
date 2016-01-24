@@ -134,6 +134,13 @@ int main(int argc, char * argv[])
           for(j=0;waits[i].args[j]!=NULL;j++)
             printf(" %s", waits[i].args[j]);
           printf("\n");
+
+          int k = 0;
+          for(k; k < logic_fd; ++k)
+          {
+                // printf("close %d\n", fd_vec[j]);
+                close(fd_vec[k]);
+          }
         }
       }
       case VERBOSE:
@@ -310,6 +317,7 @@ int main(int argc, char * argv[])
       //waiting for the signal not set ignored to arrive
       case PAUSE:
       {
+        // printf("pause\n");
         pause();
         break;
       }
