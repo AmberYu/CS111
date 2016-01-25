@@ -40,8 +40,7 @@
 
 void sig_handler(int sigNum)
 {
-  fprintf(stderr, "Signal Catch [%s]\n", strerror(sigNum)); 
-  // printf("signal catch: %d\n", signum);
+  fprintf(stderr, "[%d] Caught\n", sigNum); 
   exit(sigNum);
 }
 
@@ -272,11 +271,11 @@ int main(int argc, char * argv[])
         oflag|=O_NONBLOCK;
         break;
       }
-      // case RSYNC:
-      // {
-      //   oflag|=O_RSYNC;
-      //   break;
-      // }
+      case RSYNC:
+      {
+        oflag|=O_RSYNC;
+        break;
+      }
       
       case SYNC:
       {

@@ -19,7 +19,7 @@ echo bb >> a.txt
   --command 3 5 6 tr A-Z a-z \
   --command 0 2 6 sort \
   --command 1 4 6 cat b - \
-  --wait \
+  --wait 
   
 
 
