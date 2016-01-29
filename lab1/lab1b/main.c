@@ -8,6 +8,9 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+
 #define no_argument 0
 #define required_argument 1 
 #define optional_argument 2
@@ -36,12 +39,17 @@
 #define IGNORE    'v'   //test
 #define DEFAULT   'w'   //test
 #define PAUSE     'x'   //test
+#define PROFILE   'y'
 
 
 void sig_handler(int sigNum)
 {
   fprintf(stderr, "[%d] Caught\n", sigNum); 
   exit(sigNum);
+}
+
+long int microsec_convert(timeval t){
+  return t.tv_sec * pow(10,6) + t.tv_usec;
 }
 
 int main(int argc, char * argv[])
@@ -72,6 +80,7 @@ int main(int argc, char * argv[])
     {"ignore", required_argument, 0, IGNORE},
     {"default", required_argument, 0, DEFAULT},
     {"pause", no_argument, 0, PAUSE},
+    {"profile", no_argument, 0, PROFILE},
     {0,           0,               0,  0   }  //denote end
   };
   //keep record of wait information in parent process for future use when come accross wait option
@@ -96,6 +105,11 @@ int main(int argc, char * argv[])
   int logic_fd=0;
   //map logic fd to real fd
   int fd_vec[argc];
+
+  //define time usage
+  struct rusage usage;
+  struct timeval CPUtime;
+
   while((iarg = getopt_long(argc, argv, "", longopts, &index)) != -1)
   {
     if(verbose_shown==1){
@@ -147,10 +161,16 @@ int main(int argc, char * argv[])
         verbose_shown=1;
         break;
       }
+      case PROFILE:
+      {
+        printf(stdout,"CPU Time consumption: %ld\n", CPUtime);
+      }
       case COMMAND:
       {
         pid = fork();
         char* a[20];
+        getrusage(RUSAGE_SELF, &usage);
+        CPUtime = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
         // Child process
         if (pid == 0) {
             // Execute command
@@ -208,12 +228,9 @@ int main(int argc, char * argv[])
               wait.args[i] = NULL;
               waits[numSubPro++] = wait;
             // }
-            
-            // printf("pid %d\n", wait.childPid);
-            //store argument of this command
-            
-            //return 1;
         } 
+        getrusage(RUSAGE_SELF, &usage);
+        CPUtime = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime) - CPUtime;
         break;
       }
       case PIPE:
