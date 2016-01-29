@@ -102,6 +102,7 @@ int main(int argc, char * argv[])
   //opterr=0; 
   errno = 0;
   int verbose_shown=0;
+  int profile_shown=0;
   int logic_fd=0;
   //map logic fd to real fd
   int fd_vec[argc];
@@ -117,15 +118,17 @@ int main(int argc, char * argv[])
       //Does this command has argument?
       if (optarg)
       { 
-		int vidx;
+		    int vidx;
         for(vidx = optind-1;vidx < argc; ++vidx){
           if(strncmp(argv[vidx], "--", 2) == 0)
               break;  //hit the next option
           printf("%s ", argv[vidx]);
         }
         printf("\n");
-
       }
+    }
+    if(profile_shown==1){
+      printf(stdout,"CPU Time consumption: %ld\n", CPUtime);
     }
     switch (iarg)
     {
@@ -163,7 +166,8 @@ int main(int argc, char * argv[])
       }
       case PROFILE:
       {
-        printf(stdout,"CPU Time consumption: %ld\n", CPUtime);
+        profile_shown=1;
+        break;
       }
       case COMMAND:
       {
@@ -346,6 +350,8 @@ int main(int argc, char * argv[])
 
       case RDONLY:
       {
+        getrusage(RUSAGE_SELF, &usage);
+        CPUtime = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
         oflag|=O_RDONLY;
         if((fd = open(optarg, oflag))!=-1){
           //printf("read only is hit, the logic fd is %d\n",logic_fd);
@@ -358,10 +364,14 @@ int main(int argc, char * argv[])
           exit(1);
         }
         oflag=0;
+        getrusage(RUSAGE_SELF, &usage);
+        CPUtime = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime) - CPUtime;
         break;
       }
       case WRONLY:
       {
+        getrusage(RUSAGE_SELF, &usage);
+        CPUtime = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
         oflag|=O_WRONLY;
         if((fd = open(optarg, oflag,0644))!=-1){
           //printf("write only is hit, the logic fd is %d\n",logic_fd);
@@ -372,10 +382,14 @@ int main(int argc, char * argv[])
           exit(1);
         }
         oflag=0;
+        getrusage(RUSAGE_SELF, &usage);
+        CPUtime = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime) - CPUtime;
         break;
       }
       case RDWR:
       {
+        getrusage(RUSAGE_SELF, &usage);
+        CPUtime = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
         oflag|=O_RDWR;
         if((fd = open(optarg, oflag, 0644))!=-1){
           //printf("read only is hit, the logic fd is %d\n",logic_fd);
@@ -386,6 +400,8 @@ int main(int argc, char * argv[])
           exit(1);
         }
         oflag=0;
+        getrusage(RUSAGE_SELF, &usage);
+        CPUtime = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime) - CPUtime;
         break;
       }
     }
