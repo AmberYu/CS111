@@ -110,7 +110,7 @@ int main(int argc, char * argv[])
   //define time usage
   struct rusage usage;
   long int CPUtimeP, CPUtimeC=0;
-
+  char* prev_opt;
   while((iarg = getopt_long(argc, argv, "", longopts, &index)) != -1)
   {
     if(verbose_shown==1){
@@ -131,6 +131,7 @@ int main(int argc, char * argv[])
     {
       case WAIT:
       {
+        prev_opt = "wait";
         //printf("%d\n",numSubPro);
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
@@ -163,7 +164,8 @@ int main(int argc, char * argv[])
           }
           getrusage(RUSAGE_CHILDREN, &usage);
           CPUtimeC = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime)-CPUtimeC;
-          printf("CPU Children Time: %ld\n",CPUtimeC);
+          if(profile_shown)
+            printf("CPU Children Time of executing wait is: %ld\n",CPUtimeC);
         }
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime)-CPUtimeP;
@@ -173,11 +175,13 @@ int main(int argc, char * argv[])
       }
       case VERBOSE:
       {
+        prev_opt = "verbose";
         verbose_shown=1;
         break;
       }
       case PROFILE:
       {
+        prev_opt = "profile";
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
         profile_shown=1;
@@ -187,10 +191,12 @@ int main(int argc, char * argv[])
       }
       case COMMAND:
       {
-        pid = fork();
-        char* a[20];
+        prev_opt = "command";
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
+        pid = fork();
+        char* a[20];
+        
         // Child process
         if (pid == 0) {
             // Execute command
@@ -255,6 +261,7 @@ int main(int argc, char * argv[])
       }
       case PIPE:
       {
+        prev_opt = "pipe";
           getrusage(RUSAGE_SELF, &usage);
           CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
           int pipefd[2];
@@ -331,7 +338,8 @@ int main(int argc, char * argv[])
       }
 
       case CLOSE:
-      {
+      { 
+        prev_opt = "close";
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
         close(fd_vec[atoi(optarg)]);
@@ -342,6 +350,7 @@ int main(int argc, char * argv[])
 
       case ABORT:
       {
+        prev_opt = "abort";
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
         raise(SIGSEGV);
@@ -352,6 +361,7 @@ int main(int argc, char * argv[])
 
       case IGNORE:
       {
+        prev_opt = "ignore";
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
         signal(atoi(optarg), SIG_IGN);
@@ -362,6 +372,7 @@ int main(int argc, char * argv[])
 
       case DEFAULT:
       {
+        prev_opt = "default";
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
         signal(atoi(optarg), SIG_DFL);
@@ -373,6 +384,7 @@ int main(int argc, char * argv[])
       //waiting for the signal not set ignored to arrive
       case PAUSE:
       {
+        prev_opt = "pause";
         // printf("pause\n");
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
@@ -384,6 +396,7 @@ int main(int argc, char * argv[])
 
       case CATCH:
       {
+        prev_opt = "catch";
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
         signal(atoi(optarg), sig_handler);
@@ -394,6 +407,7 @@ int main(int argc, char * argv[])
 
       case RDONLY:
       {
+        prev_opt = "rdonly";
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
         oflag|=O_RDONLY;
@@ -414,6 +428,7 @@ int main(int argc, char * argv[])
       }
       case WRONLY:
       {
+        prev_opt = "wronly";
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
         oflag|=O_WRONLY;
@@ -432,6 +447,7 @@ int main(int argc, char * argv[])
       }
       case RDWR:
       {
+        prev_opt = "rdwr";
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime);
         oflag|=O_RDWR;
@@ -450,7 +466,7 @@ int main(int argc, char * argv[])
       }
     }
     if(profile_shown==1){
-      printf("CPU Parent Time: %ld\n", CPUtimeP);
+      printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
       // if(CPUtimeC>0) 
       //   printf("CPU Children Time: %ld\n", CPUtimeC);
     }
