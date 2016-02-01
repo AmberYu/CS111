@@ -2,6 +2,7 @@
 # test5.sh
 
 ./simpsh \
+  --profile \
   --rdonly test5_input \
   --pipe \
   --pipe \

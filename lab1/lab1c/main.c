@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <getopt.h>
@@ -169,6 +170,7 @@ int main(int argc, char * argv[])
         }
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime)-CPUtimeP;
+        printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
         // getrusage(RUSAGE_CHILDREN, &usage);
         // CPUtimeC = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime)-CPUtimeC;
         break;
@@ -187,6 +189,7 @@ int main(int argc, char * argv[])
         profile_shown=1;
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime)-CPUtimeP;
+        printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
         break;
       }
       case COMMAND:
@@ -257,6 +260,7 @@ int main(int argc, char * argv[])
         } 
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime) - CPUtimeP;
+        printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
         break;
       }
       case PIPE:
@@ -276,6 +280,7 @@ int main(int argc, char * argv[])
           // printf("%d\n", logic_fd);
           getrusage(RUSAGE_SELF, &usage);
           CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime) - CPUtimeP;
+          printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
           break;
       }
       case APPEND:
@@ -345,6 +350,7 @@ int main(int argc, char * argv[])
         close(fd_vec[atoi(optarg)]);
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime) - CPUtimeP;
+        printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
         break;
       }
 
@@ -356,6 +362,7 @@ int main(int argc, char * argv[])
         raise(SIGSEGV);
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime) - CPUtimeP;
+        printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
         break;
       }
 
@@ -367,6 +374,7 @@ int main(int argc, char * argv[])
         signal(atoi(optarg), SIG_IGN);
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime) - CPUtimeP;
+        printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
         break;
       }
 
@@ -378,6 +386,7 @@ int main(int argc, char * argv[])
         signal(atoi(optarg), SIG_DFL);
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime) - CPUtimeP;
+        printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
         break;
       }
 
@@ -391,6 +400,7 @@ int main(int argc, char * argv[])
         pause();
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime) - CPUtimeP;
+        printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
         break;
       }
 
@@ -402,6 +412,7 @@ int main(int argc, char * argv[])
         signal(atoi(optarg), sig_handler);
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime) - CPUtimeP;
+        printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
         break;
       }
 
@@ -424,6 +435,7 @@ int main(int argc, char * argv[])
         oflag=0;
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime) - CPUtimeP;
+        printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
         break;
       }
       case WRONLY:
@@ -443,6 +455,7 @@ int main(int argc, char * argv[])
         oflag=0;
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime) - CPUtimeP;
+        printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
         break;
       }
       case RDWR:
@@ -462,14 +475,15 @@ int main(int argc, char * argv[])
         oflag=0;
         getrusage(RUSAGE_SELF, &usage);
         CPUtimeP = microsec_convert(usage.ru_utime) + microsec_convert(usage.ru_stime) - CPUtimeP;
+        printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
         break;
       }
     }
-    if(profile_shown==1){
-      printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
-      // if(CPUtimeC>0) 
-      //   printf("CPU Children Time: %ld\n", CPUtimeC);
-    }
+    // if(profile_shown==1){
+    //   printf("CPU Parent Time of executing %s is: %ld\n",prev_opt, CPUtimeP);
+    //   // if(CPUtimeC>0) 
+    //   //   printf("CPU Children Time: %ld\n", CPUtimeC);
+    // }
   }
 
   return 0; 
