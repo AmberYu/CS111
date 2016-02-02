@@ -10,4 +10,5 @@
   --command 0 2 6 cat \
   --command 1 4 6 grep CS111 \
   --command 3 5 6 sort \
-  --wait
+  
+
