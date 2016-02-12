@@ -55,6 +55,86 @@ typedef struct list
 	list_node* tail;
 	int size;
 }list;
+
+void add_to_ticket_list(list_t *list, int number)
+{
+	if (list->tail == NULL)
+	{
+		list->tail = kmalloc(sizeof(list_node_t *), GFP_ATOMIC);
+		list->tail->num = number;
+		list->tail->next = NULL;
+		list->head = list->tail;
+		list->size++;
+	}
+	else
+	{
+		list->tail->next = kmalloc(sizeof(list_node_t *), GFP_ATOMIC);
+		list->tail = list->tail->next;
+		list->tail->num = number;
+		list->tail->next = NULL;
+		list->size++;
+	}
+}
+
+void remove_from_list(ist_t *list, int number)
+{
+	if (list->head->num == number)
+	{
+		list_node_t * temp = list->head;
+		list->head = list->head->next;
+		if (list->head == NULL) 
+		{
+			list->tail = NULL;
+		}
+		list->size--;
+		kfree(temp);
+	}
+	else
+	{
+		list_node_t *prev = list->head;
+		list_node_t *curr = prev->next;
+		while(curr != NULL)
+		{
+			if (curr->num == number)
+			{
+				prev->next = curr->next;
+				if (prev->next == NULL)
+				{
+					list->tail = prev;
+				}
+				list->size--;
+				kfree(curr);
+				break;
+			}
+			prev = prev->next;
+			curr = curr->next;
+		}
+	}
+}
+
+
+int return_valid_ticket(list_t *invalid_list, int ticket)
+{
+	int valid_ticket = ticket;
+	list_node_t *curr = invalid_list->head;
+	while (curr != NULL)
+	{
+		if (curr->num == valid_ticket)
+		{
+			valid_ticket++;
+			curr = invalid_list->head;
+			remove_from_list(invalid_list, curr->num);
+		}
+		else
+			curr = curr->next;
+	}
+	return valid_ticket;
+}
+
+
+
+
+
 /* The internal representation of our device. */
 typedef struct osprd_info {
 	uint8_t *data;                  // The data array. Its size is  //points to data in device
@@ -183,6 +263,26 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 		// as appropriate.
 
 		// Your code here.
+		osp_spin_lock(&d->mutex);
+		// When the file is closed;
+		if ((filp->f_flags & F_OSPRD_LOCKED) != 0)
+		{
+			if (filp_writable)
+			{
+				remove_from_list(d->write_locking_pids, current->pid);
+				// eprintk("Write done!\n");
+				// print_list(d->write_locking_pids);
+			}
+			else
+			{
+				remove_from_list(d->read_locking_pids, current->pid);
+				// eprintk("Read done!\n");
+				// print_list(d->read_locking_pids);
+			}
+			// eprintk("Locking command release!\n");
+			wake_up_all(&d->blockq);
+		}
+		osp_spin_unlock(&d->mutex);
 
 		// This line avoids compiler warnings; you may remove it.
 		(void) filp_writable, (void) d;
@@ -191,6 +291,8 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 
 	return 0;
 }
+
+
 
 
 /*
