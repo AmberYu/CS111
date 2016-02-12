@@ -445,6 +445,18 @@ static void osprd_setup(osprd_info_t *d)
 	osp_spin_lock_init(&d->mutex);
 	d->ticket_head = d->ticket_tail = 0;
 	/* Add code here if you add fields to osprd_info_t. */
+	d->write_locking_pids = kmalloc(sizeof(num_list_t*), GFP_ATOMIC);
+	d->write_locking_pids->size = 0;
+	d->write_locking_pids->head = NULL;
+	d->write_locking_pids->tail = NULL;
+	d->read_locking_pids = kmalloc(sizeof(num_list_t*), GFP_ATOMIC);
+	d->read_locking_pids->size = 0;
+	d->read_locking_pids->head = NULL;
+	d->read_locking_pids->tail = NULL;
+	d->invalid_ticket = kmalloc(sizeof(num_list_t*), GFP_ATOMIC);
+	d->invalid_ticket->size = 0;
+	d->invalid_ticket->head = NULL;
+	d->invalid_ticket->tail = NULL;
 }
 
 
