@@ -43,7 +43,18 @@ MODULE_AUTHOR("Skeletor");
 static int nsectors = 32;    //each device contains 32*512 bytes
 module_param(nsectors, int, 0);
 
+typedef struct list_node
+{
+	int val;
+	struct list_node *next;
+} list_node;
 
+typedef struct list
+{
+	list_node* head;
+	list_node* tail;
+	int size;
+}list;
 /* The internal representation of our device. */
 typedef struct osprd_info {
 	uint8_t *data;                  // The data array. Its size is  //points to data in device
@@ -63,7 +74,10 @@ typedef struct osprd_info {
 
 	/* HINT: You may want to add additional fields to help
 	         in detecting deadlock. */
-
+	list *write_locking_pids;
+	list *read_locking_pids;
+	list *invalid_tickets;
+	
 	// The following elements are used internally; you don't need
 	// to understand them.
 	struct request_queue *queue;    // The device request queue.
@@ -239,7 +253,54 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		// be protected by a spinlock; which ones?)
 
 		// Your code here (instead of the next two lines).
-		eprintk("Attempting to acquire\n");
+		//eprintk("Attempting to acquire\n");
+		unsigned my_ticket;
+		// TODO DEADLOCK DETECTION
+
+		osp_spin_lock(&(d->mutex));
+		my_ticket = d->ticket_head;
+		d->ticket_head++;
+		osp_spin_unlock(&(d->mutex));
+
+		if(filp_writable){  //write-lock
+			//if the condition is true, the function returns 0
+			//otherwise, block, no value returned
+			//if it receives a signal, it returns non-zero value
+			//blockq stores processes that are waiting on the current device
+			if(wait_event_interruptible(d->blockq,d->ticket_tail == my_ticket
+										&& d->write_locking_pids->size == 0
+										&& d->read_locking_pids->size == 0)){
+				//don't give lock, enter the if statement only when you receive a signal
+				//kill current process and store its ticket number into invalid ticket list
+				if(d->ticket_tail == my_ticket){
+					//the current process is the next one to have the lock, but we receive kill sginal
+					//find the next valid ticket
+					//return_valid_ticket function returns the next valid ticket
+					d->ticket_tail = return_valid_ticket(d->invalid_tickets, d->ticket_tail+1);
+					wake_up_all(&(d->blockq));
+
+				}
+				else{
+					add_to_ticket_list(d->invalid_tickets,my_ticket);
+					//no need to change the ticket tail
+				}
+				return -ERESTARTSYS;
+			}
+			//wait_event_interruptible() returns 0
+			//the current process can get the lock on the device
+			filp->f_flags |= F_OSPRD_LOCKED;
+			add_to_pid_list(d->write_locking_pids, current->pid);
+			//increase ticket tail to be the next valid ticket
+			d->ticket_tail = return_valid_ticket(d->invalid_tickets, d->ticket_tail+1);
+			return 0;
+		}
+		else{ //read-lock
+			//multiple processes can have read lock on one device
+
+
+		}
+
+		//there is no write lock on device and there is no read lock on device
 		r = -ENOTTY;
 
 	} else if (cmd == OSPRDIOCTRYACQUIRE) {
