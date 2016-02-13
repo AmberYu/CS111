@@ -45,7 +45,7 @@ module_param(nsectors, int, 0);
 
 typedef struct list_node
 {
-	int val;
+	int num;
 	struct list_node *next;
 } list_node;
 
@@ -56,11 +56,11 @@ typedef struct list
 	int size;
 }list;
 
-void add_to_ticket_list(list_t *list, int number)
+void add_to_ticket_list(list *list, int number)
 {
 	if (list->tail == NULL)
 	{
-		list->tail = kmalloc(sizeof(list_node_t *), GFP_ATOMIC);
+		list->tail = kmalloc(sizeof(list_node *), GFP_ATOMIC);
 		list->tail->num = number;
 		list->tail->next = NULL;
 		list->head = list->tail;
@@ -68,7 +68,7 @@ void add_to_ticket_list(list_t *list, int number)
 	}
 	else
 	{
-		list->tail->next = kmalloc(sizeof(list_node_t *), GFP_ATOMIC);
+		list->tail->next = kmalloc(sizeof(list_node *), GFP_ATOMIC);
 		list->tail = list->tail->next;
 		list->tail->num = number;
 		list->tail->next = NULL;
@@ -76,11 +76,11 @@ void add_to_ticket_list(list_t *list, int number)
 	}
 }
 
-void remove_from_list(ist_t *list, int number)
+void remove_from_list(list *list, int number)
 {
 	if (list->head->num == number)
 	{
-		list_node_t * temp = list->head;
+		list_node * temp = list->head;
 		list->head = list->head->next;
 		if (list->head == NULL) 
 		{
@@ -91,8 +91,8 @@ void remove_from_list(ist_t *list, int number)
 	}
 	else
 	{
-		list_node_t *prev = list->head;
-		list_node_t *curr = prev->next;
+		list_node *prev = list->head;
+		list_node *curr = prev->next;
 		while(curr != NULL)
 		{
 			if (curr->num == number)
@@ -113,10 +113,10 @@ void remove_from_list(ist_t *list, int number)
 }
 
 
-int return_valid_ticket(list_t *invalid_list, int ticket)
+int return_valid_ticket(list *invalid_list, int ticket)
 {
 	int valid_ticket = ticket;
-	list_node_t *curr = invalid_list->head;
+	list_node *curr = invalid_list->head;
 	while (curr != NULL)
 	{
 		if (curr->num == valid_ticket)
@@ -130,9 +130,6 @@ int return_valid_ticket(list_t *invalid_list, int ticket)
 	}
 	return valid_ticket;
 }
-
-
-
 
 
 /* The internal representation of our device. */
@@ -267,6 +264,7 @@ static int osprd_close_last(struct inode *inode, struct file *filp)
 		// When the file is closed;
 		if ((filp->f_flags & F_OSPRD_LOCKED) != 0)
 		{
+			filp->f_flags &= ~F_OSPRD_LOCKED;
 			if (filp_writable)
 			{
 				remove_from_list(d->write_locking_pids, current->pid);
@@ -358,7 +356,9 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		//eprintk("Attempting to acquire\n");
 		unsigned my_ticket;
 		// TODO DEADLOCK DETECTION
-
+		if(d->write_locking_pids->head!=NULL && current->pid == d->write_locking_pids->head->num){
+			return -EDEADLK;
+		}
 		osp_spin_lock(&(d->mutex));
 		my_ticket = d->ticket_head;
 		d->ticket_head++;
@@ -374,20 +374,20 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 										&& d->read_locking_pids->size == 0)){
 				//don't give lock, enter the if statement only when you receive a signal
 				//kill current process and store its ticket number into invalid ticket list
-				osp_spin_lock(&(d->mutex));
+				//osp_spin_lock(&(d->mutex));
 				if(d->ticket_tail == my_ticket){
 					//the current process is the next one to have the lock, but we receive kill sginal
 					//find the next valid ticket
 					//return_valid_ticket function returns the next valid ticket
 					d->ticket_tail = return_valid_ticket(d->invalid_tickets, d->ticket_tail+1);
-					wake_up_all(&(d->blockq));
+					//wake_up_all(&(d->blockq));
 
 				}
 				else{
 					add_to_ticket_list(d->invalid_tickets,my_ticket);
 					//no need to change the ticket tail
 				}
-				osp_spin_unlock(&(d->mutex));
+				//osp_spin_unlock(&(d->mutex));
 				return -ERESTARTSYS;
 			}
 			//wait_event_interruptible() returns 0
@@ -398,6 +398,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 			//increase ticket tail to be the next valid ticket
 			d->ticket_tail = return_valid_ticket(d->invalid_tickets, d->ticket_tail+1);
 			osp_spin_unlock(&(d->mutex));
+			wake_up_all(&(d->blockq));
 			return 0;
 		}
 		else{ //read-lock
@@ -425,7 +426,6 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 			wake_up_all(&(d->blockq));
 			return 0;
 		}
-		r = -ENOTTY;
 
 	} else if (cmd == OSPRDIOCTRYACQUIRE) {
 
@@ -452,7 +452,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 			//blockq stores processes that are waiting on the current device
 			if(!(d->blockq,d->ticket_tail == my_ticket
 										&& d->write_locking_pids->size == 0
-										&& d->read_locking_pids->size == 0)){				
+										&& d->read_locking_pids->size == 0) ){				
 				d->ticket_tail = return_valid_ticket(d->invalid_tickets, d->ticket_tail+1);
 				return -EBUSY;
 			}
@@ -468,7 +468,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		else{ //read-lock
 			//multiple processes can have read lock on one device
 			if(!(d->blockq,d->ticket_tail == my_ticket
-										&& d->write_locking_pids->size == 0)){
+										&& d->write_locking_pids->size == 0) ){
 				d->ticket_tail = return_valid_ticket(d->invalid_tickets, d->ticket_tail+1);
 				return -EBUSY;
 			}
@@ -495,10 +495,12 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		// you need, and return 0.
 
 		// Your code here (instead of the next line).
-		osp_spin_lock(&(d->mutex));
 		if((filp->f_flags & F_OSPRD_LOCKED) == 0)
-			r = -EINVAL;
-		else if (filp_writable)
+			return -EINVAL;
+		
+		osp_spin_lock(&(d->mutex));
+		
+		if (filp_writable)
 		{
 			remove_from_list(d->write_locking_pids,current->pid);
 		}
@@ -508,6 +510,7 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		}
 		filp->f_flags &= !F_OSPRD_LOCKED;
 		osp_spin_unlock(&(d->mutex));
+		wake_up_all (&d->blockq);
 
 	} else
 		r = -ENOTTY; /* unknown command */
@@ -524,18 +527,18 @@ static void osprd_setup(osprd_info_t *d)
 	osp_spin_lock_init(&d->mutex);
 	d->ticket_head = d->ticket_tail = 0;
 	/* Add code here if you add fields to osprd_info_t. */
-	d->write_locking_pids = kmalloc(sizeof(num_list_t*), GFP_ATOMIC);
+	d->write_locking_pids = kmalloc(sizeof(list*), GFP_ATOMIC);
 	d->write_locking_pids->size = 0;
 	d->write_locking_pids->head = NULL;
 	d->write_locking_pids->tail = NULL;
-	d->read_locking_pids = kmalloc(sizeof(num_list_t*), GFP_ATOMIC);
+	d->read_locking_pids = kmalloc(sizeof(list*), GFP_ATOMIC);
 	d->read_locking_pids->size = 0;
 	d->read_locking_pids->head = NULL;
 	d->read_locking_pids->tail = NULL;
-	d->invalid_ticket = kmalloc(sizeof(num_list_t*), GFP_ATOMIC);
-	d->invalid_ticket->size = 0;
-	d->invalid_ticket->head = NULL;
-	d->invalid_ticket->tail = NULL;
+	d->invalid_tickets = kmalloc(sizeof(list*), GFP_ATOMIC);
+	d->invalid_tickets->size = 0;
+	d->invalid_tickets->head = NULL;
+	d->invalid_tickets->tail = NULL;
 }
 
 
