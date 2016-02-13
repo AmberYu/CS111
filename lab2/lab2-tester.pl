@@ -166,6 +166,12 @@ close FOO;
       ') 2>/dev/null',
       "aX"
     ],
+    #18 A simple deadlock
+    [
+      'echo ababab | ./osprdaccess -w -l /dev/osprda /dev/osprda ' .
+      './osprdaccess -r /dev/osprda',
+      "ioctl OSPRDIOCACQUIRE: Resource deadlock avoided"
+    ],
     );
 
 my($ntest) = 0;
