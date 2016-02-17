@@ -131,8 +131,17 @@ int main(int argc, char *argv[])
 	int devfd, ofd;
 	int i, r, timeout = 0, zero = 0;
 	int mode = O_RDONLY, dolock = 0, dotrylock = 0;
+	//0-NoNotification; 1-whole; 2-sector; 3-sectorRange; 4-byte; 5-byteRange;
+	int notification_type = 0;
 	ssize_t size = -1;
+	ssize_t string_size = 0;
 	ssize_t offset = 0;
+	ssize_t sx = 0;
+	ssize_t Sx = 0, Sy = 0;
+	ssize_t bx = 0;
+	ssize_t Bx = 0, By = 32 * 512 - 1;
+	int *notify_offset;
+	int *wakeup_offset;
 	double delay = 0;
 	double lock_delay = 0;
 	const char *devname = "/dev/osprda";
@@ -196,6 +205,54 @@ int main(int argc, char *argv[])
 		goto flag;
 	}
 
+		// Detect a notification option
+	if (argc >= 2 && strcmp(argv[1], "-n") == 0) {
+		notification_type = 1;
+		argv++, argc--;
+		goto flag;
+	}
+
+	// Detect a notification for particular sector
+	if (argc >= 2 && strcmp(argv[1], "-s") == 0) {
+		notification_type = 2;
+		argv++, argc--;
+		if (argc >= 2 && parse_ssize(argv[1], &sx))
+			argv++, argc--;
+		goto flag;
+	}
+
+	// Detect a notification for sectors' range
+	if (argc >= 2 && strcmp(argv[1], "-S") == 0) {
+		notification_type = 3;
+		argv++, argc--;
+		if (argc >= 2 && parse_ssize(argv[1], &Sx))
+			argv++, argc--;
+		if (argc >= 2 && parse_ssize(argv[1], &Sy))
+			argv++, argc--;
+		goto flag;
+	}
+
+	// Detect a notification for particular byte
+	if (argc >= 2 && strcmp(argv[1], "-b") == 0) {
+		notification_type = 4;
+		argv++, argc--;
+		if (argc >= 2 && parse_ssize(argv[1], &bx))
+			argv++, argc--;
+		goto flag;
+	}
+
+	// Detect a notification for bytes' range
+	if (argc >= 2 && strcmp(argv[1], "-B") == 0) {
+		notification_type = 5;
+		argv++, argc--;
+		if (argc >= 2 && parse_ssize(argv[1], &Bx))
+			argv++, argc--;
+		if (argc >= 2 && parse_ssize(argv[1], &By))
+			argv++, argc--;
+		goto flag;
+	}
+
+
 	// Detect a help option
 	if (argc >= 2 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0))
 		usage(0);
@@ -211,6 +268,34 @@ int main(int argc, char *argv[])
 	if (devfd == -1) {
 		perror("open");
 		exit(1);
+	}
+
+	// Block until receive a notification
+	if (notification_type) {
+		if (notification_type == 1) {
+			Bx = 0;
+			By = 32 * 512 - 1;
+		} else if (notification_type == 2) {
+			Bx = sx * 512;
+			By = (sx + 1) * 512 - 1;
+		} else if (notification_type == 3) {
+			Bx = Sx * 512;
+			By = (Sy + 1) * 512 - 1;
+		} else if (notification_type == 4) {
+			Bx = bx;
+			By = bx;
+		}else if (notification_type == 5) {
+			Bx = bx;
+			By = by;
+		}
+
+		notify_offset = malloc (sizeof(int) * 2);
+		notify_offset[0] = Bx;
+		notify_offset[1] = By;
+		if (ioctl(devfd, OSPRDIOCNOTIFY, notify_offset) == -1) {
+			perror("ioctl OSPRDIOCNOTIFY");
+			exit(1);
+		}
 	}
 
 	// Lock, possibly after delay
@@ -245,8 +330,16 @@ int main(int argc, char *argv[])
 	// Read or write
 	if ((mode & O_WRONLY) && zero)
 		transfer_zero(devfd, size);
-	else if (mode & O_WRONLY)
+	else if (mode & O_WRONLY){
 		transfer(STDIN_FILENO, devfd, size);
+		wakeup_offset = malloc (sizeof(int) * 2);
+		wakeup_offset[0] = offset;
+		wakeup_offset[1] = (size == -1) ? string_size : size;
+		if (ioctl(devfd, OSPRDIOCTRYWAKEUP, wakeup_offset) == -1) {
+			perror("ioctl OSPRDIOCTRYWAKEUP");
+			exit(1);
+		}
+	}
 	else
 		transfer(devfd, STDOUT_FILENO, size);
 
