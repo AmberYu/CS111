@@ -50,36 +50,36 @@ typedef struct list_node
 	int end;     //the end of notification area
 	int is_notified;   // 1 - this process receives notification and can be waked up 
 	struct list_node *next;
-} list_node;
+};
 
 typedef struct list
 {
 	list_node* head;
 	list_node* tail;
 	int size;
-}list;
+};
 
-void add_to_ticket_list(list *l, int number)
+void add_to_ticket_list(list *list, int number)
 {
-	if (l->tail == NULL)
+	if (list->tail == NULL)
 	{
-		l->tail = kmalloc(sizeof(list_node *), GFP_ATOMIC);
-		l->tail->num = number;
-		l->tail->next = NULL;
-		l->head = l>tail;
-		l->size++;
+		list->tail = kmalloc(sizeof(list_node *), GFP_ATOMIC);
+		list->tail->num = number;
+		list->tail->next = NULL;
+		list->head = list->tail;
+		list->size++;
 	}
 	else
 	{
-		l->tail->next = kmalloc(sizeof(list_node *), GFP_ATOMIC);
-		l->tail = l->tail->next;
-		l->tail->num = number;
-		l->tail->next = NULL;
-		l->size++;
+		list->tail->next = kmalloc(sizeof(list_node *), GFP_ATOMIC);
+		list->tail = list->tail->next;
+		list->tail->num = number;
+		list->tail->next = NULL;
+		list->size++;
 	}
 }
 
-void add_to_ticket_list(list *l, int number, int start, int end)
+void add_to_ticket_list_N(list *l, int number, int start, int end)
 {
 	if (l->tail == NULL)
 	{
@@ -97,30 +97,30 @@ void add_to_ticket_list(list *l, int number, int start, int end)
 		l->tail->next = kmalloc(sizeof(list_node *), GFP_ATOMIC);
 		l->tail = l->tail->next;
 		l->tail->num = number;
-		// l->tail->start = start;
-		// l->tail->end = end;
-		// l->tail->is_notified = 0;
+		l->tail->start = start;
+		l->tail->end = end;
+		l->tail->is_notified = 0;
 		l->tail->next = NULL;
 		l->size++;
 	}
 }
 
-void remove_from_list(list *l, int number)
+void remove_from_list(list *list, int number)
 {
-	if (l->head->num == number)
+	if (list->head->num == number)
 	{
-		list_node * temp = l->head;
-		l->head = l->head->next;
-		if (l->head == NULL) 
+		list_node * temp = list->head;
+		list->head = list->head->next;
+		if (list->head == NULL) 
 		{
-			l->tail = NULL;
+			list->tail = NULL;
 		}
-		l->size--;
+		list->size--;
 		kfree(temp);
 	}
 	else
 	{
-		list_node *prev = l->head;
+		list_node *prev = list->head;
 		list_node *curr = prev->next;
 		while(curr != NULL)
 		{
@@ -129,9 +129,9 @@ void remove_from_list(list *l, int number)
 				prev->next = curr->next;
 				if (prev->next == NULL)
 				{
-					l->tail = prev;
+					list->tail = prev;
 				}
-				l->size--;
+				list->size--;
 				kfree(curr);
 				break;
 			}
@@ -159,6 +159,7 @@ int return_valid_ticket(list *invalid_list, int ticket)
 	}
 	return valid_ticket;
 }
+
 // check if the current process has been notified
 int is_notified(list* l, int pid){
 	list_node *curr = l->head;
@@ -181,6 +182,7 @@ void notify(list* l, int start, int end){
 	}
 }
 
+
 /* The internal representation of our device. */
 typedef struct osprd_info {
 	uint8_t *data;                  // The data array. Its size is  //points to data in device
@@ -197,21 +199,21 @@ typedef struct osprd_info {
 
 	wait_queue_head_t blockq;       // Wait queue for tasks blocked on
 					// the device lock
+
 	/* HINT: You may want to add additional fields to help
 	         in detecting deadlock. */
 	list *write_locking_pids;
 	list *read_locking_pids;
 	list *invalid_tickets;
-	
+
 	unsigned notification_ticket_head;
 	unsigned notification_ticket_tail;
-	wait_queue_head_t block_notify  // Wait queue for processes blocked on notification
+	wait_queue_head_t block_notify;  // Wait queue for processes blocked on notification
 	list *wait_notification_pids;
 	list *invalid_notification_tickets;
-
+	
 	// The following elements are used internally; you don't need
 	// to understand them.
-	eprintk("Process is waiting the notification!\n");
 	struct request_queue *queue;    // The device request queue.
 	spinlock_t qlock;		// Used internally for mutual
 	                                //   exclusion in the 'queue'.
@@ -568,16 +570,16 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		wake_up_all (&d->blockq);
 
 	} else if (cmd == OSPRDIOCNOTIFY){
-
-		int start = arg[0];
-		int end = arg[1];
-
+		
+                int* notify_offset;
+		notify_offset = (int *)arg;
+		int start = notify_offset[0];
+		int end = notify_offset[1];
 		unsigned my_ticket;
-
 		osp_spin_lock(&(d->mutex));
 		my_ticket = d->notification_ticket_head;
 		d->notification_ticket_head++;
-		add_to_ticket_list(d->wait_notification_pids, current->pid, start, end);
+		add_to_ticket_list_N(d->wait_notification_pids, current->pid, start, end);
 		osp_spin_unlock(&(d->mutex));
 
 
@@ -602,14 +604,16 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		d->notification_ticket_tail = return_valid_ticket(d->invalid_notification_tickets, d->notification_ticket_tail+1);
 		return 0;
 
-	} else if (cmd == OSPRDIOCTRYWAKEUP){
-		int offset = arg[0];
-		int size = arg[1];
+	}else if (cmd == OSPRDIOCTRYWAKEUP){
+		int *wakeup_offset;
+		wakeup_offset = (int *) arg; 
+		int offset = wakeup_offset[0];
+		int size = wakeup_offset[1];
 		osp_spin_lock(&(d->mutex));
 		notify(d->wait_notification_pids, offset, offset+size-1);
 		osp_spin_unlock(&(d->mutex));
 
-	} else
+	}else
 		r = -ENOTTY; /* unknown command */
 	return r;
 }
