@@ -74,7 +74,7 @@ void sleep_for(double seconds)
 	}
 }
 
-void transfer(int fd1, int fd2, ssize_t size)
+void transfer(int fd1, int fd2, ssize_t size, ssize_t *sizeW)
 {
 	char buf[BUFSIZ], *bufptr;
 
@@ -101,7 +101,11 @@ void transfer(int fd1, int fd2, ssize_t size)
 				perror("write");
 				exit(1);
 			} else
+			{
 				bufptr += w, r -= w;
+				if (sizeW != NULL)
+					*sizeW = w;
+			}
 		}
 	}
 }
@@ -328,7 +332,7 @@ int main(int argc, char *argv[])
 	if ((mode & O_WRONLY) && zero)
 		transfer_zero(devfd, size);
 	else if (mode & O_WRONLY){
-		transfer(STDIN_FILENO, devfd, size);
+		transfer(STDIN_FILENO, devfd, size, &string_size);
 		wakeup_offset = malloc (sizeof(int) * 2);
 		wakeup_offset[0] = offset;
 		wakeup_offset[1] = (size == -1) ? string_size : size;
@@ -338,7 +342,7 @@ int main(int argc, char *argv[])
 		}
 	}
 	else
-		transfer(devfd, STDOUT_FILENO, size);
+		transfer(devfd, STDOUT_FILENO, size,NULL);
 
 	exit(0);
 }
