@@ -46,6 +46,9 @@ module_param(nsectors, int, 0);
 typedef struct list_node
 {
 	int num;
+	int start;   //the start of notification area
+	int end;     //the end of notification area
+	int is_notified;   // 1 - this process receives notification and can be waked up 
 	struct list_node *next;
 } list_node;
 
@@ -56,42 +59,68 @@ typedef struct list
 	int size;
 }list;
 
-void add_to_ticket_list(list *list, int number)
+void add_to_ticket_list(list *l, int number)
 {
-	if (list->tail == NULL)
+	if (l->tail == NULL)
 	{
-		list->tail = kmalloc(sizeof(list_node *), GFP_ATOMIC);
-		list->tail->num = number;
-		list->tail->next = NULL;
-		list->head = list->tail;
-		list->size++;
+		l->tail = kmalloc(sizeof(list_node *), GFP_ATOMIC);
+		l->tail->num = number;
+		l->tail->next = NULL;
+		l->head = l>tail;
+		l->size++;
 	}
 	else
 	{
-		list->tail->next = kmalloc(sizeof(list_node *), GFP_ATOMIC);
-		list->tail = list->tail->next;
-		list->tail->num = number;
-		list->tail->next = NULL;
-		list->size++;
+		l->tail->next = kmalloc(sizeof(list_node *), GFP_ATOMIC);
+		l->tail = l->tail->next;
+		l->tail->num = number;
+		l->tail->next = NULL;
+		l->size++;
 	}
 }
 
-void remove_from_list(list *list, int number)
+void add_to_ticket_list(list *l, int number, int start, int end)
 {
-	if (list->head->num == number)
+	if (l->tail == NULL)
 	{
-		list_node * temp = list->head;
-		list->head = list->head->next;
-		if (list->head == NULL) 
+		l->tail = kmalloc(sizeof(list_node *), GFP_ATOMIC);
+		l->tail->num = number;
+		l->tail->start = start;
+		l->tail->end = end;
+		l->tail->is_notified = 0;
+		l->tail->next = NULL;
+		l->head = l>tail;
+		l->size++;
+	}
+	else
+	{
+		l->tail->next = kmalloc(sizeof(list_node *), GFP_ATOMIC);
+		l->tail = l->tail->next;
+		l->tail->num = number;
+		// l->tail->start = start;
+		// l->tail->end = end;
+		// l->tail->is_notified = 0;
+		l->tail->next = NULL;
+		l->size++;
+	}
+}
+
+void remove_from_list(list *l, int number)
+{
+	if (l->head->num == number)
+	{
+		list_node * temp = l->head;
+		l->head = l->head->next;
+		if (l->head == NULL) 
 		{
-			list->tail = NULL;
+			l->tail = NULL;
 		}
-		list->size--;
+		l->size--;
 		kfree(temp);
 	}
 	else
 	{
-		list_node *prev = list->head;
+		list_node *prev = l->head;
 		list_node *curr = prev->next;
 		while(curr != NULL)
 		{
@@ -100,9 +129,9 @@ void remove_from_list(list *list, int number)
 				prev->next = curr->next;
 				if (prev->next == NULL)
 				{
-					list->tail = prev;
+					l->tail = prev;
 				}
-				list->size--;
+				l->size--;
 				kfree(curr);
 				break;
 			}
@@ -130,7 +159,27 @@ int return_valid_ticket(list *invalid_list, int ticket)
 	}
 	return valid_ticket;
 }
-
+// check if the current process has been notified
+int is_notified(list* l, int pid){
+	list_node *curr = invalid_list->head;
+	while(curr){
+		if(curr->num == pid){
+			return curr->is_notified;
+		}
+		curr = curr->next;
+	}
+	return 0;
+}
+// change the notified status of processes in the waiting list
+void notify(list* l, int start, int end){
+	list_node *curr = invalid_list->head;
+	while(curr){
+		if(curr->start <= end && curr->end >= start){
+			curr->is_notified = 1;
+		}
+		curr = curr->next;
+	}
+}
 
 /* The internal representation of our device. */
 typedef struct osprd_info {
@@ -148,13 +197,18 @@ typedef struct osprd_info {
 
 	wait_queue_head_t blockq;       // Wait queue for tasks blocked on
 					// the device lock
-
 	/* HINT: You may want to add additional fields to help
 	         in detecting deadlock. */
 	list *write_locking_pids;
 	list *read_locking_pids;
 	list *invalid_tickets;
 	
+	unsigned notification_ticket_head;
+	unsigned notification_ticket_tail;
+	wait_queue_head_t block_notify  // Wait queue for processes blocked on notification
+	list *wait_notification_pids;
+	list *invalid_notification_tickets;
+
 	// The following elements are used internally; you don't need
 	// to understand them.
 	struct request_queue *queue;    // The device request queue.
@@ -512,6 +566,48 @@ int osprd_ioctl(struct inode *inode, struct file *filp,
 		osp_spin_unlock(&(d->mutex));
 		wake_up_all (&d->blockq);
 
+	} else if (cmd == OSPRDIOCNOTIFY){
+
+		int start = arg[0];
+		int end = arg[1];
+
+		unsigned my_ticket;
+
+		osp_spin_lock(&(d->mutex));
+		my_ticket = d->notification_ticket_head;
+		d->notification_ticket_head++;
+		add_to_ticket_list(d->wait_notification_pids, current->pid, start, end);
+		osp_spin_unlock(&(d->mutex));
+
+
+		if(wait_event_interruptible(d->block_notify,d->notification_ticket_tail == my_ticket
+										&& is_notified(d->wait_notification_pids, current->pid))){
+			osp_spin_lock(&(d->mutex));
+			if(d->notification_ticket_tail == my_ticket){
+
+				d->notification_ticket_tail = return_valid_ticket(d->invalid_notification_tickets, d->notification_ticket_tail+1);
+
+			}
+			else{
+				add_to_ticket_list(d->invalid_notification_tickets,my_ticket);
+			}
+				
+			return -ERESTARTSYS;
+
+			osp_spin_unlock(&(d->mutex));
+
+		}
+		remove_from_list(d->wait_notification_pids,current->pid);
+		d->notification_ticket_tail = return_valid_ticket(d->invalid_notification_tickets, d->notification_ticket_tail+1);
+		return 0;
+
+	} else if (cmd == OSPRDIOCTRYWAKEUP){
+		int offset = arg[0];
+		int size = arg[1];
+		osp_spin_lock(&(d->mutex));
+		notify(d->wait_notification_pids, offset, offset+size-1);
+		osp_spin_unlock(&(d->mutex));
+
 	} else
 		r = -ENOTTY; /* unknown command */
 	return r;
@@ -539,6 +635,17 @@ static void osprd_setup(osprd_info_t *d)
 	d->invalid_tickets->size = 0;
 	d->invalid_tickets->head = NULL;
 	d->invalid_tickets->tail = NULL;
+
+	init_waitqueue_head(&d->block_notify);
+	d->notification_ticket_head = d->notification_ticket_tail = 0;
+	d->wait_notification_pids = kmalloc(sizeof(list*), GFP_ATOMIC);
+	d->wait_notification_pids->size = 0;
+	d->wait_notification_pids->head = NULL;
+	d->wait_notification_pids->tail = NULL;
+	d->invalid_notification_tickets = kmalloc(sizeof(list*), GFP_ATOMIC);
+	d->invalid_notification_tickets->size = 0;
+	d->invalid_notification_tickets->head = NULL;
+	d->invalid_notification_tickets->tail = NULL;
 }
 
 

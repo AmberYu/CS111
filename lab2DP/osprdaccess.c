@@ -284,11 +284,8 @@ int main(int argc, char *argv[])
 		} else if (notification_type == 4) {
 			Bx = bx;
 			By = bx;
-		}else if (notification_type == 5) {
-			Bx = bx;
-			By = by;
 		}
-
+		//notification_type == 5, default Bx and By
 		notify_offset = malloc (sizeof(int) * 2);
 		notify_offset[0] = Bx;
 		notify_offset[1] = By;
