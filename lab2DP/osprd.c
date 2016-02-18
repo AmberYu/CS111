@@ -161,7 +161,7 @@ int return_valid_ticket(list *invalid_list, int ticket)
 }
 // check if the current process has been notified
 int is_notified(list* l, int pid){
-	list_node *curr = invalid_list->head;
+	list_node *curr = l->head;
 	while(curr){
 		if(curr->num == pid){
 			return curr->is_notified;
@@ -172,7 +172,7 @@ int is_notified(list* l, int pid){
 }
 // change the notified status of processes in the waiting list
 void notify(list* l, int start, int end){
-	list_node *curr = invalid_list->head;
+	list_node *curr = l->head;
 	while(curr){
 		if(curr->start <= end && curr->end >= start){
 			curr->is_notified = 1;
@@ -211,6 +211,7 @@ typedef struct osprd_info {
 
 	// The following elements are used internally; you don't need
 	// to understand them.
+	eprintk("Process is waiting the notification!\n");
 	struct request_queue *queue;    // The device request queue.
 	spinlock_t qlock;		// Used internally for mutual
 	                                //   exclusion in the 'queue'.
