@@ -41,6 +41,7 @@ static ospfs_super_t * const ospfs_super =
 	(ospfs_super_t *) &ospfs_data[OSPFS_BLKSIZE];
 
 static int change_size(ospfs_inode_t *oi, uint32_t want_size);
+// static int add_block(ospfs_inode_t *oi);
 static ospfs_direntry_t *find_direntry(ospfs_inode_t *dir_oi, const char *name, int namelen);
 
 
@@ -692,12 +693,13 @@ static int32_t
 direct_index(uint32_t b)
 {
 	// Your code here.
-	if(b >= OSPFS_NDIRECT){
+	if(b >= OSPFS_NDIRECT)
 	{
 		b -= OSPFS_NDIRECT;
 		b %= OSPFS_NINDIRECT;
 	}
 	return b;
+	// return -1;
 }
 
 int zero_out_block(uint32_t block_no)
@@ -1282,7 +1284,7 @@ create_blank_direntry(ospfs_inode_t *dir_oi)
 	for (i = 0; i * OSPFS_DIRENTRY_SIZE < dir_oi->oi_size; i++)
 	{
 		dentry = ospfs_inode_data(dir_oi, i * OSPFS_DIRENTRY_SIZE);
-		if (direntry->od_ino == 0)
+		if (dentry->od_ino == 0)
 			return dentry;
 	}
 
@@ -1374,6 +1376,16 @@ ospfs_link(struct dentry *src_dentry, struct inode *dir, struct dentry *dst_dent
 //   3. Initialize the directory entry and inode.
 //
 //   EXERCISE: Complete this function.
+static int find_free_inode()
+{
+	ospfs_inode_t *inode_block = ospfs_inode(ospfs_super->os_firstinob);
+	int i;
+	for(i=1;i<ospfs_super->os_ninodes;i++){
+		if(inode_block[i].oi_nlink == 0)
+			return i;
+	}
+	return 0;
+}
 
 static int
 ospfs_create(struct inode *dir, struct dentry *dentry, int mode, struct nameidata *nd)
