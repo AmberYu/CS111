@@ -1,0 +1,43 @@
+//1.1.1 Why does it take this many threads or iterations
+In order to result in a non-zero sum we have to take a large number of threads or iterations to gaurantte that 
+conflict happens.
+
+//1.1.2 Why does a significantly smaller number of iterations so seldom fail?
+
+If the number of iterations is small, the calculation can be so fast that there is less likely that the race 
+condition could happen. In that case the final count we got might still be zero.
+
+//1.2.1 Why does the average cost per operation drop with increasing iterations?
+In our program, the operation that consumes most time is creating threads and waiting on threads. When we incrase 
+the iterations, the elapsed time changes a little as the computation runs very fast. Thus the increase of elapsed 
+time is much less than the increase of number of operations, wihch means the time of starting threads and waiting 
+on threads will be amortized by the number of operations. Thus the average cost per operation would drop with 
+increasing iterations. 
+
+//1.2.2 How do we know what the “correct” cost is?
+We could try to reach the limitation. We could continue to increase the number of iterations until the average 
+cost per operation converge to a stable state and that value should be the "correct" cost;
+
+//1.2.3 Why are the --yield runs so much slower? Where is the extra time going?
+Because everytime we call yield, context switch happens, the system spends time picking up a thread to run. Thus it 
+runs slower and the extra time goes to context switch.
+
+//1.2.4 Can we get valid timings if we are using --yield? How, or why not?
+
+//1.3.1 Why do all of the options perform similarly for low numbers of threads?
+If there is only a small number of threads, the race condition is less likely to happen. So the final count would
+likely be zero. Also, the thread sequence with different execution order is limited as the number of threads is small.
+Thus, there might be only a few possible values of the final count. And that's probably why the options perform 
+similarly for low numbers of threads.
+'
+//1.3.2 Why do the three protected operations slow down as the number of threads rises?
+For the three protected operations, we either add lock to prevent race condition or use GCC atomic builtin function
+to ensure the race condition happens in a correct way. Once we add the mutex or spinlock, as the number of threads 
+rises, competition among threads trying to get the lock becomes more fierce. And once a thread acquires a lock, 
+others could do nothing but to wait on the lock to be released. Thus, it will take a longer time. For the function
+"__sync_val_compare_and_swap", we have to wait until the new value equals to the expected value and it also takes
+a longer time than the case without protected operations.
+
+//1.3.3 Why are spin-locks so expensive for large numbers of threads?
+Because spinlock performs busy waiting. It keeps polling while the lock is held by a thread, which wastes a lot 
+of CPU time for no real benefit. 
