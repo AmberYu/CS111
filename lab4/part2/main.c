@@ -111,10 +111,12 @@ void thread_func(){
   //for each thread, do some preparation work
   int i;
   for(i = 0; i < num_iterations; ++i){
-    add_spin_lock(&counter,1);
+    //insert
   }
+  //lookup a string in the string array in order, return the node needs to be deleted
+
   for(i = 0; i < num_iterations; ++i){
-    add_spin_lock(&counter,-1);
+    //delete
   }
 }
 
