@@ -32,6 +32,8 @@ static  int num_iterations;
 static  int num_threads;
 static int opt_yield = 0;
 static pthread_mutex_t lock;
+static int** string_array;
+static SortedListElement_t* head = NULL;
 
 //demonstrate conflicts between 
 // 1) inserts
@@ -41,11 +43,18 @@ static pthread_mutex_t lock;
 #include "SortedList.h"
 
 void SortedList_insert(SortedList_t *list, SortedListElement_t *element){   //element is current ndoe
+  if (list==NULL)
+  {
+    list = element;
+    list->next = element;
+    list->prev = element;
+    return;
+  }
   SortedListElement_t *p = list;
   SortedListElement_t *n = list->next;
   while(n!=list){
     //list is not empty
-    if(strcomp(element->key,n->key)<=0)
+    if(strcmp(element->key,n->key)<=0)
       break;
     p = n;
     n = n->next;
@@ -104,19 +113,76 @@ int SortedList_length(SortedList_t *list){
   }
   return length;
 }
+//Helper function
+//Generate a random string
+char *rand_string(int length) {
+    char *string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.-#'?!";
+    size_t stringLen = 26*2+10+7;
+    char *randomString;
+    
+    randomString = malloc(sizeof(char) * (length +1));
+    
+    if (!randomString) {
+        return (char*)0;
+    }
+    
+    unsigned int key = 0;
+    
+    for (int n = 0;n < length;n++) {
+        key = rand() % stringLen;
+        randomString[n] = string[key];
+    }
+    
+    randomString[length] = '\0';
+    
+    return randomString;
+}
+
+//Generate a random number, we assume the number is within 1~20
+int rand_num(){
+  srand(time(NULL));
+  return rand();
+}
+
+//Initialize string array
+void generate_string_array(){
+  string_array = new int*[num_threads];   //number of rows is the number of threads
+  for(int i = 0; i < num_threads; ++i)
+    string_array[i] = new int[num_iterations];
+  //generate random string and store into the array
+  for (int i = 0; i < num_threads; ++i)
+  {
+    for (int j = 0; j < num_iterations; ++j)
+    {
+      int len = rand_num()%20+1;
+      string_array[i][j] = rand_string(len);
+    }
+  }
+}
 //first implement the three function without locking and see how the race condition impact the result
 //then add the locking to critical section
 
-void thread_func(){
+void thread_func(void *arg){
+
   //for each thread, do some preparation work
   int i;
   for(i = 0; i < num_iterations; ++i){
     //insert
+    SortedListElement_t* node;
+    node->key = string_array[*arg][i];
+    int ret = SortedList_insert(head, node);
+    if (ret)
+      fprintf(stderr,"Failed with error [%s]\n",strerror(errno)); 
   }
   //lookup a string in the string array in order, return the node needs to be deleted
 
   for(i = 0; i < num_iterations; ++i){
     //delete
+    int cur_len = SortedList_length(head);
+    int idx = rand_num()%cur_len;
+    int ret = SortedList_delete(SortedList_lookup(head, string_array[arg][idx]));
+    if(ret)
+      fprintf(stderr,"Failed with error [%s]\n",strerror(errno)); 
   }
 }
 
@@ -136,7 +202,9 @@ int main(int argc, char * argv[])
   int index;
   errno = 0;
 
-  
+  //initialize string array
+  generate_string_array();
+
   while((iarg = getopt_long(argc, argv, "", longopts, &index)) != -1)
   {
       
@@ -185,7 +253,7 @@ int main(int argc, char * argv[])
   threads = malloc(sizeof(pthread_t)*num_threads);
   int i;
   for( i = 0; i < num_threads; ++i){
-    int ret = pthread_create(&threads[i], NULL,(void *) thread_func, NULL);
+    int ret = pthread_create(&threads[i], NULL,(void *) thread_func,(void *) i);
     if(ret != 0)
     {
       fprintf(stderr,"Failed with error [%s]\n",strerror(errno)); 
