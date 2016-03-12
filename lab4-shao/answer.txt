@@ -20,7 +20,7 @@ We could try to reach the limitation. We could continue to increase the number o
 Because everytime we call yield, context switch happens, the system spends time picking up a thread to run. Thus it runs slower and the extra time goes to context switch.
 
 //1.2.4 Can we get valid timings if we are using --yield? How, or why not?
-No,
+No, the reason is the same as 2.3.1.,
 
 //1.3.1 Why do all of the options perform similarly for low numbers of threads?
 If there is only a small number of threads, the race condition is less likely to happen. So the final count would likely be zero. Also, the thread sequence with different execution order is limited as the number of threads is small.
@@ -42,9 +42,10 @@ Then, when the iterations become larger, the time of inserting and lookup/deleti
 The variation in time per protected operation in part2 is larger than that in part1. Because the data structure is more complict.
 
 //2.3.1 Explain the the change in performance of the synchronized methods as a function of the number of threads per list.
+As we see from the graph we plotted, as the number of threads per list increases, the average time per operation increases as well, which leads to worse performance. It is because more number of threads per list results in more fierce race condition, which means more threads will wait on the same resources, which turns out to increase the CPU time. Thus the performance is getting worse with the increase of number of threads per list.
 
 //2.3.2 Explain why threads per list is a more interesting number than threads (for this particular measurement).
-
+Because the race condition will only happen if multiple threads operate on the same list. If two threads are trying to insert/delete to/from two different threads, there will not be any race condition, so it wouldn't affect the performance. 
 
 //3.1.1 Why must the mutex be held when pthread_cond_wait is called?
 To avoid race condition from other threads. Calling thread should have full control over its block condition to ensure deterministic program logic.
