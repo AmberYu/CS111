@@ -1,0 +1,62 @@
+Name: Jingzhi Yu
+UID: 604514516
+
+Name: QI SHAO
+UID: 504513739
+
+//1.1.1 Why does it take this many threads or iterations
+In order to result in a non-zero sum we have to take a large number of threads or iterations to gaurantte that conflict happens.
+
+//1.1.2 Why does a significantly smaller number of iterations so seldom fail?
+If the number of iterations is small, the calculation can be so fast that there is less likely that the race condition could happen. In that case the final count we got might still be zero.
+
+//1.2.1 Why does the average cost per operation drop with increasing iterations?
+In our program, the operation that consumes most time is creating threads and waiting on threads. When we incrase the iterations, the elapsed time changes a little as the computation runs very fast. Thus the increase of elapsed time is much less than the increase of number of operations, wihch means the time of starting threads and waiting on threads will be amortized by the number of operations. Thus the average cost per operation would drop with increasing iterations. 
+
+//1.2.2 How do we know what the “correct” cost is?
+We could try to reach the limitation. We could continue to increase the number of iterations until the average cost per operation converge to a stable state and that value should be the "correct" cost;
+
+//1.2.3 Why are the --yield runs so much slower? Where is the extra time going?
+Because everytime we call yield, context switch happens, the system spends time picking up a thread to run. Thus it runs slower and the extra time goes to context switch.
+
+//1.2.4 Can we get valid timings if we are using --yield? How, or why not?
+No,
+
+//1.3.1 Why do all of the options perform similarly for low numbers of threads?
+If there is only a small number of threads, the race condition is less likely to happen. So the final count would likely be zero. Also, the thread sequence with different execution order is limited as the number of threads is small.
+Thus, there might be only a few possible values of the final count. And that's probably why the options perform similarly for low numbers of threads.
+
+//1.3.2 Why do the three protected operations slow down as the number of threads rises?
+For the three protected operations, we either add lock to prevent race condition or use GCC atomic builtin function to ensure the race condition happens in a correct way. Once we add the mutex or spinlock, as the number of threads rises, competition among threads trying to get the lock becomes more fierce. And once a thread acquires a lock, others could do nothing but to wait on the lock to be released. Thus, it will take a longer time. For the function "__sync_val_compare_and_swap", we have to wait until the new value equals to the expected value and it also takes a longer time than the case without protected operations.
+
+//1.3.3 Why are spin-locks so expensive for large numbers of threads?
+Because spinlock performs busy waiting. It keeps polling while the lock is held by a thread, which wastes a lot of CPU time for no real benefit. 
+
+
+//2.1.1 Explain the variation in time per operation vs the number of iterations? How would you propose to correct for this effect?
+When the number of iterations increase, time per operation decrease firstly and then increase.
+At the very beginning, the operation that consumes most time is creating threads and waiting on threads. When we incrase the iterations, the elapsed time changes a little as the computation runs very fast. Thus the increase of elapsed time is much less than the increase of number of operations, wihch means the time of starting threads and waiting on threads will be amortized by the number of operations. Thus the average cost per operation would drop with increasing iterations. 
+Then, when the iterations become larger, the time of inserting and lookup/deleting dominates, the average cost per operation would increase with increasing iterations. 
+
+//2.2.1 Compare the variation in time per protected operation vs the number of threads in Part 2 and in Part 1. Explain the difference.
+The variation in time per protected operation in part2 is larger than that in part1. Because the data structure is more complict.
+
+//2.3.1 Explain the the change in performance of the synchronized methods as a function of the number of threads per list.
+
+//2.3.2 Explain why threads per list is a more interesting number than threads (for this particular measurement).
+
+
+//3.1.1 Why must the mutex be held when pthread_cond_wait is called?
+To avoid race condition from other threads. Calling thread should have full control over its block condition to ensure deterministic program logic.
+
+//3.1.2 Why must the mutex be released when the waiting thread is blocked?
+If it doesn't release the mutex, when the calling thread is put into sleep and the waiting thread is blocked, no thread will be able to modify the mutex's reacquire condition and resume the thread. The program will fall into stick.
+
+//3.1.3 Why must the mutex be reacquired when the calling thread resumes?
+To avoid race condition from other threads. 
+
+//3.1.4 Why must this be done inside of pthread_cond_wait? Why can’t the caller simply release the mutex before calling pthread_cond_wait?
+Other threads may change calling thread's status between release the mutex and calling pthread_cond_wait.
+
+//3.1.5 Can this be done in a user-mode implementation of pthread_cond_wait? If so, how? If it can only be implemented by a system call, explain why?
+It can only be implemented by a system call. Because if the calling thread is in sleep, no user mode code can be still running.

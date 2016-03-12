@@ -127,7 +127,7 @@ int main(int argc, char * argv[])
       case YIELD:
       {
         if(optarg){
-          opt_yield = 1;;
+          opt_yield = 1;
         }
         break;
       }
